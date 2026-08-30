@@ -137,6 +137,7 @@ ui.btnStart.addEventListener('click', () => {
   // Первое касание: только здесь iPad разрешает включить звук
   sfx.init();
   voice.init();
+  voice.unlockAudioFiles();  // разблокировать все звуки сразу, одним касанием
   sfx.setMuted(state.muted);
   voice.setMuted(state.muted);
 

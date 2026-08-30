@@ -45,12 +45,20 @@ const VOICE_TEMPLATES = {
   win:        ['assets/voice/win-prefix.m4a', null, 'assets/voice/win-suffix.m4a'],
 };
 
+// Все файлы, что вообще могут понадобиться — для разовой разблокировки разом
+const ALL_VOICE_FILES = [
+  ...Object.values(VOICE_FILES),
+  ...Object.values(LETTER_FILES),
+  ...Object.values(VOICE_TEMPLATES).flat().filter(Boolean),
+];
+
 class Voice {
   constructor() {
     this.muted = false;
     this.ruVoice = null;
     this.ready = false;
     this._audio = null;
+    this._pool = new Map();  // путь к файлу → готовый <audio>-элемент
   }
 
   /** Вызывать только после первого касания экрана — этого требует iPad. */
@@ -70,6 +78,27 @@ class Voice {
     };
     pick();
     window.speechSynthesis.onvoiceschanged = pick;
+  }
+
+  /** Вызывать СИНХРОННО прямо в обработчике нажатия «Играть» — на iPad
+   *  каждый отдельный <audio>-элемент должен быть хоть раз запущен прямо
+   *  из касания пользователя, иначе поздние реплики в длинной цепочке
+   *  (например, описание дома после «Ура!») беззвучно блокируются. */
+  unlockAudioFiles() {
+    for (const path of ALL_VOICE_FILES) {
+      const a = this._getAudio(path);
+      const vol = a.volume;
+      a.volume = 0;
+      a.play()
+        .then(() => { a.pause(); a.currentTime = 0; a.volume = vol; })
+        .catch(() => { a.volume = vol; });
+    }
+  }
+
+  _getAudio(path) {
+    let a = this._pool.get(path);
+    if (!a) { a = new Audio(path); this._pool.set(path, a); }
+    return a;
   }
 
   /** key — ключ из PHRASES, args — что подставить (например, буква). */
@@ -113,7 +142,11 @@ class Voice {
     const fail = () => { if (!failed) { failed = true; onFail(); } };
     const playNext = () => {
       if (i >= files.length) { onDone && onDone(); return; }
-      this._audio = new Audio(files[i]);
+      // Берём уже разблокированный элемент из пула, а не создаём новый —
+      // свежий <audio>, ни разу не тронутый жестом, iPad может отказаться
+      // играть в обход правила «сначала касание».
+      this._audio = this._getAudio(files[i]);
+      this._audio.currentTime = 0;
       this._audio.addEventListener('ended', () => { i++; playNext(); }, { once: true });
       this._audio.addEventListener('error', fail, { once: true });
       this._audio.play().catch(fail);
