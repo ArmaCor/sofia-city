@@ -31,8 +31,15 @@ export const PHRASES = {
 // 10 минут, а вопросительный знак в адресе аудио на старом Safari сам
 // по себе иногда мешает распознать формат. Бампить суффикс -vN при
 // каждой замене содержимого звуковых файлов.
-const VOICE_VERSION = 'v5';
+//
+// Буквы — отдельная версия: клонированный голос (v6) на одиночных буквах
+// TTS выговаривает плохо («ОФ», «МэВ» вместо «О», «Эм» — что v3, что v2),
+// поэтому для LETTER_FILES остаются старые живые записи (v5), а на
+// клон переведены только целые фразы.
+const VOICE_VERSION = 'v6';
+const LETTER_VERSION = 'v5';
 const v = (path) => path.replace(/\.mp3$/, `-${VOICE_VERSION}.mp3`);
+const vLetter = (path) => path.replace(/\.mp3$/, `-${LETTER_VERSION}.mp3`);
 
 // Обычные реплики — целиком один файл. Положить в public/assets/voice/.
 const VOICE_FILES = {
@@ -43,11 +50,11 @@ const VOICE_FILES = {
 
 // Имя буквы — отдельный короткий клип, переиспользуется в разных фразах
 const LETTER_FILES = {
-  'А': v('assets/voice/letter-a.mp3'),
-  'О': v('assets/voice/letter-o.mp3'),
-  'С': v('assets/voice/letter-s.mp3'),
-  'У': v('assets/voice/letter-u.mp3'),
-  'М': v('assets/voice/letter-m.mp3'),
+  'А': vLetter('assets/voice/letter-a.mp3'),
+  'О': vLetter('assets/voice/letter-o.mp3'),
+  'С': vLetter('assets/voice/letter-s.mp3'),
+  'У': vLetter('assets/voice/letter-u.mp3'),
+  'М': vLetter('assets/voice/letter-m.mp3'),
 };
 
 // Фразы с буквой внутри: null — сюда подставится клип буквы из LETTER_FILES
