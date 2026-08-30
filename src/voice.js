@@ -85,14 +85,32 @@ class Voice {
    *  из касания пользователя, иначе поздние реплики в длинной цепочке
    *  (например, описание дома после «Ура!») беззвучно блокируются. */
   unlockAudioFiles() {
-    for (const path of ALL_VOICE_FILES) {
+    // Строго по одному, а не все 11 разом — старый iPad не тянет столько
+    // одновременных звуковых декодеров, часть зависает без ответа, и потом
+    // игра стоит и ждёт то, что уже никогда не «доиграется» и не выдаст
+    // ошибку. Таймер — подстраховка на случай, если конкретный файл всё
+    // равно не ответит: очередь не должна встать намертво.
+    const queue = [...ALL_VOICE_FILES];
+    const next = () => {
+      const path = queue.shift();
+      if (!path) return;
+
       const a = this._getAudio(path);
       const vol = a.volume;
       a.volume = 0;
-      a.play()
-        .then(() => { a.pause(); a.currentTime = 0; a.volume = vol; })
-        .catch(() => { a.volume = vol; });
-    }
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        a.pause();
+        a.currentTime = 0;
+        a.volume = vol;
+        next();
+      };
+      a.play().then(finish).catch(finish);
+      setTimeout(finish, 700);
+    };
+    next();
   }
 
   _getAudio(path) {
@@ -147,9 +165,21 @@ class Voice {
       // играть в обход правила «сначала касание».
       this._audio = this._getAudio(files[i]);
       this._audio.currentTime = 0;
-      this._audio.addEventListener('ended', () => { i++; playNext(); }, { once: true });
+
+      let settled = false;
+      const advance = () => {
+        if (settled || failed) return;
+        settled = true;
+        i++;
+        playNext();
+      };
+      this._audio.addEventListener('ended', advance, { once: true });
       this._audio.addEventListener('error', fail, { once: true });
       this._audio.play().catch(fail);
+      // Если клип за разумное время не доиграл и не сообщил об ошибке —
+      // не виснем молча, идём дальше сами (замечено зависание элементов
+      // на старом iPad).
+      setTimeout(() => { if (!settled && !failed) advance(); }, 8000);
     };
     playNext();
   }
