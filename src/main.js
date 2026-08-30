@@ -101,7 +101,9 @@ function startTask() {
   });
 
   ui.taskText.textContent = `Выкопай букву ${key} — веди пальчиком по дорожке`;
-  voice.say('task.dig', key);
+  // Управление открывается только когда Ковшик договорит — иначе кажется,
+  // что трактор срывается с места раньше, чем понятно, что делать
+  voice.sayThen('task.dig', () => task.unlock(), key);
 }
 
 world.onUpdate((dt, t) => {
@@ -136,8 +138,10 @@ ui.btnStart.addEventListener('click', () => {
   voice.setMuted(state.muted);
 
   ui.overlayStart.classList.add('hidden');
-  voice.say('start');
-  setTimeout(startTask, 2200);
+  // Раньше startTask() запускался через фиксированные 2.2с — если Ковшик
+  // говорил дольше или короче, задание стартовало не в такт с речью.
+  // Теперь ждём реального конца фразы.
+  voice.sayThen('start', startTask);
 });
 
 ui.btnAgain.addEventListener('click', () => {

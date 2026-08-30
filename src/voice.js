@@ -46,27 +46,49 @@ class Voice {
 
   /** key — ключ из PHRASES, args — что подставить (например, буква). */
   say(key, ...args) {
-    if (this.muted) return;
+    this._speak(key, args);
+  }
+
+  /** То же самое, но onDone вызовется, когда реплика договорена.
+   *  Нужно, чтобы игрок не мог начать действие, пока Ковшик ещё объясняет. */
+  sayThen(key, onDone, ...args) {
+    this._speak(key, args, onDone);
+  }
+
+  _speak(key, args, onDone) {
+    if (this.muted) { onDone && onDone(); return; }
 
     // 1) Если для реплики записан живой голос — играем файл
     if (VOICE_FILES[key]) {
       this.stop();
       this._audio = new Audio(VOICE_FILES[key]);
-      this._audio.play().catch(() => {});
+      if (onDone) this._audio.addEventListener('ended', onDone, { once: true });
+      this._audio.play().catch(() => onDone && onDone());
       return;
     }
 
     // 2) Иначе — синтез речи
-    if (!('speechSynthesis' in window)) return;
-    const make = PHRASES[key];
-    if (!make) return;
+    if (!('speechSynthesis' in window) || !PHRASES[key]) { onDone && onDone(); return; }
 
+    const text = PHRASES[key](...args);
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(make(...args));
+    const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ru-RU';
     if (this.ruVoice) u.voice = this.ruVoice;
     u.rate = 0.95;   // чуть медленнее обычного — ребёнку так понятнее
     u.pitch = 1.03;  // раньше было 1.15 — задранный питч и звучал «пищащим роботом»
+
+    if (onDone) {
+      // На части устройств (замечено на старом Safari) событие onend у
+      // синтеза речи не всегда срабатывает — подстраховываемся таймером
+      // по длине фразы, чтобы игра не зависала в ожидании реплики.
+      let done = false;
+      const finish = () => { if (!done) { done = true; onDone(); } };
+      u.onend = finish;
+      u.onerror = finish;
+      setTimeout(finish, Math.max(1500, text.length * 90));
+    }
+
     window.speechSynthesis.speak(u);
   }
 

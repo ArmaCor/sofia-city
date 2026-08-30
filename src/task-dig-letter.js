@@ -37,6 +37,9 @@ export class DigLetterTask {
     this.digging = false;
     this.digTimer = 0;
     this.finished = false;
+    // Пока locked — ковш не реагирует на палец: сначала должна
+    // договорить инструкция, и только потом можно начинать копать.
+    this.locked = true;
     this._dummy = new THREE.Object3D();  // рабочий объект для матриц instanced-мешей
 
     this._buildVisuals();
@@ -228,7 +231,7 @@ export class DigLetterTask {
   // ---------- Управление пальцем ----------
 
   onPointerDown(x, y) {
-    if (this.finished) return;
+    if (this.finished || this.locked) return;
     const hit = this.world.pointerToGround(x, y);
     if (!hit) return;
     const pts = this.letter.strokes[this.strokeIndex];
@@ -267,6 +270,13 @@ export class DigLetterTask {
 
   onPointerUp() {
     this.dragging = false;
+  }
+
+  /** Открывает управление — вызывается, когда инструкция договорена. */
+  unlock() {
+    if (!this.locked) return;
+    this.locked = false;
+    sfx.ready();
   }
 
   // ---------- Каждый кадр ----------
@@ -389,9 +399,12 @@ export class DigLetterTask {
     this.house = house;
     this.houseGrow = 0;
 
-    voice.say('win', this.letter.name);
     setTimeout(() => sfx.win(), 350);
-    setTimeout(() => this.hooks.onWin && this.hooks.onWin(this.letter), 1400);
+    // Окно с наградой открываем, когда фраза реально договорена, а не через
+    // угаданную паузу — иначе дом вырос, а окно уже перекрыло его на полуслове
+    voice.sayThen('win', () => {
+      this.hooks.onWin && this.hooks.onWin(this.letter);
+    }, this.letter.name);
   }
 
   _growHouse(dt) {
