@@ -59,6 +59,16 @@ const ALL_VOICE_FILES = [
   ...Object.values(VOICE_TEMPLATES).flat().filter(Boolean),
 ];
 
+// ВРЕМЕННЫЙ отладочный лог — пишет на экран (#voice-debug), если он есть
+// в разметке. Нужен, чтобы видеть на самом iPad, что со звуком идёт не
+// так, не подключая кабель и Мак. Убрать после того, как звук починим.
+function log(msg) {
+  const el = document.getElementById('voice-debug');
+  if (!el) return;
+  const t = new Date().toISOString().slice(11, 19);
+  el.textContent = `[${t}] ${msg}\n${el.textContent}`.slice(0, 4000);
+}
+
 class Voice {
   constructor() {
     this.muted = false;
@@ -103,24 +113,27 @@ class Voice {
     // ошибку. Таймер — подстраховка на случай, если конкретный файл всё
     // равно не ответит: очередь не должна встать намертво.
     const queue = [...ALL_VOICE_FILES];
+    log(`unlock: старт (${queue.length} файлов)`);
     const next = () => {
       const path = queue.shift();
-      if (!path) { onDone && onDone(); return; }
+      if (!path) { log('unlock: всё готово'); onDone && onDone(); return; }
 
+      const short = path.split('/').pop();
       const a = this._getAudio(path);
       const vol = a.volume;
       a.volume = 0;
       let done = false;
-      const finish = () => {
+      const finish = (reason) => {
         if (done) return;
         done = true;
         a.pause();
         a.currentTime = 0;
         a.volume = vol;
+        log(`unlock: ${short} — ${reason}`);
         next();
       };
-      a.play().then(finish).catch(finish);
-      setTimeout(finish, 700);
+      a.play().then(() => finish('ок')).catch((e) => finish('ошибка: ' + (e && e.message || e)));
+      setTimeout(() => finish('таймаут 700мс'), 700);
     };
     next();
   }
@@ -147,6 +160,7 @@ class Voice {
     this.stop();
 
     const clips = this._resolveClips(key, args[0]);
+    log(`say: "${key}"${args[0] ? ' ' + args[0] : ''} → ${clips ? 'живой звук (' + clips.length + ' шт)' : 'синтез'}`);
     if (clips) {
       this._playSequence(clips, onDone, () => this._speakSynth(key, args, onDone));
     } else {
@@ -169,9 +183,13 @@ class Voice {
   _playSequence(files, onDone, onFail) {
     let i = 0;
     let failed = false;
-    const fail = () => { if (!failed) { failed = true; onFail(); } };
+    const fail = (reason) => {
+      if (!failed) { failed = true; log(`play: цепочка прервана — ${reason}`); onFail(); }
+    };
     const playNext = () => {
-      if (i >= files.length) { onDone && onDone(); return; }
+      if (i >= files.length) { log('play: цепочка доиграна'); onDone && onDone(); return; }
+      const short = files[i].split('/').pop();
+      log(`play: старт ${short}`);
       // Берём уже разблокированный элемент из пула, а не создаём новый —
       // свежий <audio>, ни разу не тронутый жестом, iPad может отказаться
       // играть в обход правила «сначала касание».
@@ -182,24 +200,32 @@ class Voice {
       const advance = () => {
         if (settled || failed) return;
         settled = true;
+        log(`play: ${short} — доиграл`);
         i++;
         playNext();
       };
       this._audio.addEventListener('ended', advance, { once: true });
-      this._audio.addEventListener('error', fail, { once: true });
-      this._audio.play().catch(fail);
+      this._audio.addEventListener('error', () => fail(`${short} — error-событие`), { once: true });
+      this._audio.play().catch((e) => fail(`${short} — play() отклонён: ${e && e.message || e}`));
       // Если клип за разумное время не доиграл и не сообщил об ошибке —
       // не виснем молча, идём дальше сами (замечено зависание элементов
       // на старом iPad).
-      setTimeout(() => { if (!settled && !failed) advance(); }, 8000);
+      setTimeout(() => {
+        if (!settled && !failed) { log(`play: ${short} — не ответил за 8с, идём дальше`); advance(); }
+      }, 8000);
     };
     playNext();
   }
 
   _speakSynth(key, args, onDone) {
-    if (!('speechSynthesis' in window) || !PHRASES[key]) { onDone && onDone(); return; }
+    if (!('speechSynthesis' in window) || !PHRASES[key]) {
+      log(`synth: нечем сказать "${key}" (нет speechSynthesis или фразы)`);
+      onDone && onDone();
+      return;
+    }
 
     const text = PHRASES[key](...args);
+    log(`synth: "${text.slice(0, 30)}${text.length > 30 ? '…' : ''}"`);
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ru-RU';
