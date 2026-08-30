@@ -98,6 +98,9 @@ function startTask() {
       ui.winSticker.textContent = letter.name;
       ui.overlayWin.classList.remove('hidden');
     },
+    onHouseReady: () => {
+      ui.taskText.textContent = 'Коснись экрана, чтобы продолжить';
+    },
   });
 
   ui.taskText.textContent = `Выкопай букву ${key} — веди пальчиком по дорожке`;

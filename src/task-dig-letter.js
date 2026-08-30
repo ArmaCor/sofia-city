@@ -40,6 +40,7 @@ export class DigLetterTask {
     // Пока locked — ковш не реагирует на палец: сначала должна
     // договорить инструкция, и только потом можно начинать копать.
     this.locked = true;
+    this.frozen = false;  // true — сцена застыла, ждём касания экрана
     this._dummy = new THREE.Object3D();  // рабочий объект для матриц instanced-мешей
 
     this._buildVisuals();
@@ -231,7 +232,16 @@ export class DigLetterTask {
   // ---------- Управление пальцем ----------
 
   onPointerDown(x, y) {
-    if (this.finished || this.locked) return;
+    if (this.finished) {
+      // Дом достроен, картинка застыла — ждём, пока ребёнок сам
+      // коснётся экрана, чтобы наиграться видом, а потом продолжить
+      if (this.frozen) {
+        this.frozen = false;
+        this.hooks.onWin && this.hooks.onWin(this.letter);
+      }
+      return;
+    }
+    if (this.locked) return;
     const hit = this.world.pointerToGround(x, y);
     if (!hit) return;
     const pts = this.letter.strokes[this.strokeIndex];
@@ -282,6 +292,9 @@ export class DigLetterTask {
   // ---------- Каждый кадр ----------
 
   update(dt, t) {
+    // Картинка застыла: ничего не анимируем, пока ребёнок не тронет экран
+    if (this.frozen) return;
+
     const pts = this.letter.strokes[this.strokeIndex];
 
     if (pts && !this.finished) {
@@ -400,10 +413,14 @@ export class DigLetterTask {
     this.houseGrow = 0;
 
     setTimeout(() => sfx.win(), 350);
-    // Окно с наградой открываем, когда фраза реально договорена, а не через
-    // угаданную паузу — иначе дом вырос, а окно уже перекрыло его на полуслове
+    // После похвалы — описываем сам дом, а окно с наградой не показываем
+    // сразу: замораживаем картинку и ждём, пока ребёнок сам коснётся
+    // экрана. Так у него есть время разглядеть, что выросло, в своём темпе.
     voice.sayThen('win', () => {
-      this.hooks.onWin && this.hooks.onWin(this.letter);
+      voice.sayThen('house.default', () => {
+        this.frozen = true;
+        this.hooks.onHouseReady && this.hooks.onHouseReady();
+      });
     }, this.letter.name);
   }
 
