@@ -131,17 +131,28 @@ class Voice {
       const a = this._getAudio(path);
       const vol = a.volume;
       a.volume = 0;
+
+      const playPromise = a.play();
+      // Не ждём, пока play() реально раскрутится — глушим сразу же,
+      // синхронно. Раньше пауза ставилась только после того, как промис
+      // play() отвечал (успехом/ошибкой) или проходило 2с таймаута — на
+      // слабом iPad часть файлов реально декодировалась и играла (пусть
+      // и беззвучно) все эти секунды, и это накладывалось на самое
+      // начало первой настоящей фразы — слышалось как заикание.
+      a.pause();
+      a.currentTime = 0;
+      a.volume = vol;
+
       let settled = false;
       const finish = (reason) => {
         if (settled) return;
         settled = true;
-        a.pause();
-        a.currentTime = 0;
-        a.volume = vol;
         log(`unlock: ${short} — ${reason}`);
         oneDone();
       };
-      a.play().then(() => finish('ок')).catch((e) => finish('ошибка: ' + (e && e.message || e)));
+      Promise.resolve(playPromise)
+        .then(() => finish('ок'))
+        .catch((e) => finish('ошибка: ' + (e && e.message || e)));
       setTimeout(() => finish('таймаут'), 2000);
     }
   }
