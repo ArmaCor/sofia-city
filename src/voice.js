@@ -1,8 +1,14 @@
 /* ==========================================================
    Голос заданий.
-   Сейчас говорит встроенный синтез речи браузера.
-   Когда запишем живые голоса — кладём mp3 в public/assets/voice/
-   и прописываем путь в VOICE_FILES. Остальной код менять не нужно.
+   Пока не записаны живые файлы — говорит синтез речи браузера.
+   Как только по нужному пути появится файл — он используется вместо
+   синтеза автоматически, без правок кода. Положить файлы можно
+   постепенно, по одному: чего не хватает, там просто звучит синтез.
+
+   Фразы с буквой внутри («буква А», «буква О»...) собраны из кусочков:
+   обвязка (один файл на все буквы) + короткий клип с именем буквы
+   (LETTER_FILES). Так при добавлении новой буквы достаточно записать
+   только её имя — переписывать обвязку не нужно.
    ========================================================== */
 
 // Все реплики игры в одном месте — их удобно править и переводить в аудио
@@ -17,8 +23,27 @@ export const PHRASES = {
   'start':         () => 'Привет, София! Я Ковшик. Поехали работать!',
 };
 
-// Сюда позже впишем записанные файлы, например: 'win': '/assets/voice/win.mp3'
-const VOICE_FILES = {};
+// Обычные реплики — целиком один файл. Положить в public/assets/voice/.
+const VOICE_FILES = {
+  start:           '/assets/voice/start.m4a',
+  'stroke.next':   '/assets/voice/stroke-next.m4a',
+  'house.default': '/assets/voice/house-default.m4a',
+};
+
+// Имя буквы — отдельный короткий клип, переиспользуется в разных фразах
+const LETTER_FILES = {
+  'А': '/assets/voice/letter-a.m4a',
+  'О': '/assets/voice/letter-o.m4a',
+  'С': '/assets/voice/letter-s.m4a',
+  'У': '/assets/voice/letter-u.m4a',
+  'М': '/assets/voice/letter-m.m4a',
+};
+
+// Фразы с буквой внутри: null — сюда подставится клип буквы из LETTER_FILES
+const VOICE_TEMPLATES = {
+  'task.dig': ['/assets/voice/task-dig-prefix.m4a', null],
+  win:        ['/assets/voice/win-prefix.m4a', null, '/assets/voice/win-suffix.m4a'],
+};
 
 class Voice {
   constructor() {
@@ -60,17 +85,43 @@ class Voice {
 
   _speak(key, args, onDone) {
     if (this.muted) { onDone && onDone(); return; }
+    this.stop();
 
-    // 1) Если для реплики записан живой голос — играем файл
-    if (VOICE_FILES[key]) {
-      this.stop();
-      this._audio = new Audio(VOICE_FILES[key]);
-      if (onDone) this._audio.addEventListener('ended', onDone, { once: true });
-      this._audio.play().catch(() => onDone && onDone());
-      return;
+    const clips = this._resolveClips(key, args[0]);
+    if (clips) {
+      this._playSequence(clips, onDone, () => this._speakSynth(key, args, onDone));
+    } else {
+      this._speakSynth(key, args, onDone);
     }
+  }
 
-    // 2) Иначе — синтез речи
+  /** Список файлов для реплики, либо null, если чего-то не хватает —
+   *  тогда лучше сказать всю фразу синтезом, чем полуживым голосом. */
+  _resolveClips(key, letter) {
+    const template = VOICE_TEMPLATES[key];
+    if (template) {
+      const clips = template.map((c) => (c === null ? LETTER_FILES[letter] : c));
+      return clips.every(Boolean) ? clips : null;
+    }
+    return VOICE_FILES[key] ? [VOICE_FILES[key]] : null;
+  }
+
+  /** Проигрывает файлы подряд один за другим. onFail — если файла нет на месте. */
+  _playSequence(files, onDone, onFail) {
+    let i = 0;
+    let failed = false;
+    const fail = () => { if (!failed) { failed = true; onFail(); } };
+    const playNext = () => {
+      if (i >= files.length) { onDone && onDone(); return; }
+      this._audio = new Audio(files[i]);
+      this._audio.addEventListener('ended', () => { i++; playNext(); }, { once: true });
+      this._audio.addEventListener('error', fail, { once: true });
+      this._audio.play().catch(fail);
+    };
+    playNext();
+  }
+
+  _speakSynth(key, args, onDone) {
     if (!('speechSynthesis' in window) || !PHRASES[key]) { onDone && onDone(); return; }
 
     const text = PHRASES[key](...args);
