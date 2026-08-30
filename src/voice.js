@@ -31,7 +31,7 @@ export const PHRASES = {
 // 10 минут, а вопросительный знак в адресе аудио на старом Safari сам
 // по себе иногда мешает распознать формат. Бампить суффикс -vN при
 // каждой замене содержимого звуковых файлов.
-const VOICE_VERSION = 'v4';
+const VOICE_VERSION = 'v5';
 const v = (path) => path.replace(/\.mp3$/, `-${VOICE_VERSION}.mp3`);
 
 // Обычные реплики — целиком один файл. Положить в public/assets/voice/.
