@@ -23,26 +23,33 @@ export const PHRASES = {
   'start':         () => 'Привет, София! Я Ковшик. Поехали работать!',
 };
 
+// У сервера кеш на звук — 10 минут, а имя файла при обновлении содержимого
+// не меняется (в отличие от JS/CSS со своим хешем в имени). Без версии
+// браузер годами тихо отдаёт старую запись под тем же именем. Бампить
+// это число при каждой замене содержимого звуковых файлов.
+const VOICE_VERSION = 3;
+const v = (path) => `${path}?v=${VOICE_VERSION}`;
+
 // Обычные реплики — целиком один файл. Положить в public/assets/voice/.
 const VOICE_FILES = {
-  start:           'assets/voice/start.m4a',
-  'stroke.next':   'assets/voice/stroke-next.m4a',
-  'house.default': 'assets/voice/house-default.m4a',
+  start:           v('assets/voice/start.m4a'),
+  'stroke.next':   v('assets/voice/stroke-next.m4a'),
+  'house.default': v('assets/voice/house-default.m4a'),
 };
 
 // Имя буквы — отдельный короткий клип, переиспользуется в разных фразах
 const LETTER_FILES = {
-  'А': 'assets/voice/letter-a.m4a',
-  'О': 'assets/voice/letter-o.m4a',
-  'С': 'assets/voice/letter-s.m4a',
-  'У': 'assets/voice/letter-u.m4a',
-  'М': 'assets/voice/letter-m.m4a',
+  'А': v('assets/voice/letter-a.m4a'),
+  'О': v('assets/voice/letter-o.m4a'),
+  'С': v('assets/voice/letter-s.m4a'),
+  'У': v('assets/voice/letter-u.m4a'),
+  'М': v('assets/voice/letter-m.m4a'),
 };
 
 // Фразы с буквой внутри: null — сюда подставится клип буквы из LETTER_FILES
 const VOICE_TEMPLATES = {
-  'task.dig': ['assets/voice/task-dig-prefix.m4a', null],
-  win:        ['assets/voice/win-prefix.m4a', null, 'assets/voice/win-suffix.m4a'],
+  'task.dig': [v('assets/voice/task-dig-prefix.m4a'), null],
+  win:        [v('assets/voice/win-prefix.m4a'), null, v('assets/voice/win-suffix.m4a')],
 };
 
 // Все файлы, что вообще могут понадобиться — для разовой разблокировки разом
