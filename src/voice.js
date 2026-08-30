@@ -5,17 +5,20 @@
    синтеза автоматически, без правок кода. Положить файлы можно
    постепенно, по одному: чего не хватает, там просто звучит синтез.
 
-   Фразы с буквой внутри («буква А», «буква О»...) собраны из кусочков:
-   обвязка (один файл на все буквы) + короткий клип с именем буквы
-   (LETTER_FILES). Так при добавлении новой буквы достаточно записать
-   только её имя — переписывать обвязку не нужно.
+   Фразы с буквой внутри («буква А», «буква О»...) — целиком озвученные
+   предложения на каждую букву (LETTER_PHRASE_FILES), а не склейка из
+   кусочков. Раньше пробовали переиспользовать одну обвязку + отдельный
+   клип с именем буквы, но TTS плохо выговаривает одиночную букву без
+   контекста предложения («ОФ», «МэВ» вместо «О», «Эм») — то же самое
+   и с живой чужеродной вставкой был слышен шов между голосами. Проще
+   и надёжнее сгенерировать всю фразу целиком на каждую букву.
    ========================================================== */
 
 // Все реплики игры в одном месте — их удобно править и переводить в аудио
 export const PHRASES = {
   'task.dig':      (l) => `София, помоги Ковшику выкопать котлован в форме буквы ${l}!`,
   'stroke.next':   () => 'Молодец! Теперь второй кусочек.',
-  'win':           (l) => `Ура! Буква ${l} готова! Смотри, какой дом вырос!`,
+  'win':           (l) => `Ура! Буква ${l} готова!`,
   // Пока дом один на все буквы — описание тоже одно. Когда для каждой
   // буквы сделаем свой дом, у каждого будет своя фраза-описание.
   'house.default': () => 'Смотри, какой получился домик! Стены светлые, крыша красная, а окошки синие, как небо.',
@@ -31,15 +34,8 @@ export const PHRASES = {
 // 10 минут, а вопросительный знак в адресе аудио на старом Safari сам
 // по себе иногда мешает распознать формат. Бампить суффикс -vN при
 // каждой замене содержимого звуковых файлов.
-//
-// Буквы — отдельная версия: клонированный голос (v6) на одиночных буквах
-// TTS выговаривает плохо («ОФ», «МэВ» вместо «О», «Эм» — что v3, что v2),
-// поэтому для LETTER_FILES остаются старые живые записи (v5), а на
-// клон переведены только целые фразы.
 const VOICE_VERSION = 'v6';
-const LETTER_VERSION = 'v5';
 const v = (path) => path.replace(/\.mp3$/, `-${VOICE_VERSION}.mp3`);
-const vLetter = (path) => path.replace(/\.mp3$/, `-${LETTER_VERSION}.mp3`);
 
 // Обычные реплики — целиком один файл. Положить в public/assets/voice/.
 const VOICE_FILES = {
@@ -48,26 +44,29 @@ const VOICE_FILES = {
   'house.default': v('assets/voice/house-default.mp3'),
 };
 
-// Имя буквы — отдельный короткий клип, переиспользуется в разных фразах
-const LETTER_FILES = {
-  'А': vLetter('assets/voice/letter-a.mp3'),
-  'О': vLetter('assets/voice/letter-o.mp3'),
-  'С': vLetter('assets/voice/letter-s.mp3'),
-  'У': vLetter('assets/voice/letter-u.mp3'),
-  'М': vLetter('assets/voice/letter-m.mp3'),
-};
-
-// Фразы с буквой внутри: null — сюда подставится клип буквы из LETTER_FILES
-const VOICE_TEMPLATES = {
-  'task.dig': [v('assets/voice/task-dig-prefix.mp3'), null],
-  win:        [v('assets/voice/win-prefix.mp3'), null, v('assets/voice/win-suffix.mp3')],
+// Фразы с буквой внутри — своя целая запись на каждую букву (см. пояснение
+// в шапке файла, почему не склейка из кусочков).
+const LETTER_PHRASE_FILES = {
+  'task.dig': {
+    'А': v('assets/voice/task-dig-a.mp3'),
+    'О': v('assets/voice/task-dig-o.mp3'),
+    'С': v('assets/voice/task-dig-s.mp3'),
+    'У': v('assets/voice/task-dig-u.mp3'),
+    'М': v('assets/voice/task-dig-m.mp3'),
+  },
+  win: {
+    'А': v('assets/voice/win-a.mp3'),
+    'О': v('assets/voice/win-o.mp3'),
+    'С': v('assets/voice/win-s.mp3'),
+    'У': v('assets/voice/win-u.mp3'),
+    'М': v('assets/voice/win-m.mp3'),
+  },
 };
 
 // Все файлы, что вообще могут понадобиться — для разовой разблокировки разом
 const ALL_VOICE_FILES = [
   ...Object.values(VOICE_FILES),
-  ...Object.values(LETTER_FILES),
-  ...Object.values(VOICE_TEMPLATES).flat().filter(Boolean),
+  ...Object.values(LETTER_PHRASE_FILES).flatMap((byLetter) => Object.values(byLetter)),
 ];
 
 // ВРЕМЕННЫЙ отладочный лог — пишет на экран (#voice-debug), если он есть
@@ -196,10 +195,10 @@ class Voice {
   /** Список файлов для реплики, либо null, если чего-то не хватает —
    *  тогда лучше сказать всю фразу синтезом, чем полуживым голосом. */
   _resolveClips(key, letter) {
-    const template = VOICE_TEMPLATES[key];
-    if (template) {
-      const clips = template.map((c) => (c === null ? LETTER_FILES[letter] : c));
-      return clips.every(Boolean) ? clips : null;
+    const perLetter = LETTER_PHRASE_FILES[key];
+    if (perLetter) {
+      const file = perLetter[letter];
+      return file ? [file] : null;
     }
     return VOICE_FILES[key] ? [VOICE_FILES[key]] : null;
   }
