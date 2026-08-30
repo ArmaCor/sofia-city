@@ -23,33 +23,37 @@ export const PHRASES = {
   'start':         () => 'Привет, София! Я Ковшик. Поехали работать!',
 };
 
-// У сервера кеш на звук — 10 минут, а имя файла при обновлении содержимого
-// не меняется (в отличие от JS/CSS со своим хешем в имени). Без версии
-// браузер годами тихо отдаёт старую запись под тем же именем. Бампить
-// это число при каждой замене содержимого звуковых файлов.
-const VOICE_VERSION = 3;
-const v = (path) => `${path}?v=${VOICE_VERSION}`;
+// mp3 вместо m4a: на iPad та же самая запись через <audio> падала с
+// «no supported source», хотя Content-Type был верный (audio/mp4) —
+// mp3 не даёт такой неопределённости ни в одном браузере.
+//
+// Версия — прямо в имени файла (не через ?v=...): у сервера кеш на звук
+// 10 минут, а вопросительный знак в адресе аудио на старом Safari сам
+// по себе иногда мешает распознать формат. Бампить суффикс -vN при
+// каждой замене содержимого звуковых файлов.
+const VOICE_VERSION = 'v4';
+const v = (path) => path.replace(/\.mp3$/, `-${VOICE_VERSION}.mp3`);
 
 // Обычные реплики — целиком один файл. Положить в public/assets/voice/.
 const VOICE_FILES = {
-  start:           v('assets/voice/start.m4a'),
-  'stroke.next':   v('assets/voice/stroke-next.m4a'),
-  'house.default': v('assets/voice/house-default.m4a'),
+  start:           v('assets/voice/start.mp3'),
+  'stroke.next':   v('assets/voice/stroke-next.mp3'),
+  'house.default': v('assets/voice/house-default.mp3'),
 };
 
 // Имя буквы — отдельный короткий клип, переиспользуется в разных фразах
 const LETTER_FILES = {
-  'А': v('assets/voice/letter-a.m4a'),
-  'О': v('assets/voice/letter-o.m4a'),
-  'С': v('assets/voice/letter-s.m4a'),
-  'У': v('assets/voice/letter-u.m4a'),
-  'М': v('assets/voice/letter-m.m4a'),
+  'А': v('assets/voice/letter-a.mp3'),
+  'О': v('assets/voice/letter-o.mp3'),
+  'С': v('assets/voice/letter-s.mp3'),
+  'У': v('assets/voice/letter-u.mp3'),
+  'М': v('assets/voice/letter-m.mp3'),
 };
 
 // Фразы с буквой внутри: null — сюда подставится клип буквы из LETTER_FILES
 const VOICE_TEMPLATES = {
-  'task.dig': [v('assets/voice/task-dig-prefix.m4a'), null],
-  win:        [v('assets/voice/win-prefix.m4a'), null, v('assets/voice/win-suffix.m4a')],
+  'task.dig': [v('assets/voice/task-dig-prefix.mp3'), null],
+  win:        [v('assets/voice/win-prefix.mp3'), null, v('assets/voice/win-suffix.mp3')],
 };
 
 // Все файлы, что вообще могут понадобиться — для разовой разблокировки разом
