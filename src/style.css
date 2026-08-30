@@ -1,0 +1,205 @@
+/* ==========================================================
+   Стили интерфейса «Городок Софии».
+   Главные правила для 5 лет:
+   - всё крупное (кнопки не меньше 72px),
+   - никакого мелкого текста,
+   - палитра тёплая, из брифинга.
+   ========================================================== */
+
+:root {
+  --sky:    #8ECAE6;  /* небо */
+  --sun:    #FFB703;  /* солнце, монетки */
+  --machine:#FB8500;  /* техника */
+  --grass:  #90BE6D;  /* трава */
+  --deep:   #023047;  /* тёмный текст */
+  --white:  #FFFFFF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sky);
+  font-family: -apple-system, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, sans-serif;
+  /* Отключаем прокрутку и «резинку» — палец должен управлять игрой, а не страницей */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* Слой интерфейса: сам по себе клики не ловит,
+   ловят только кнопки внутри (pointer-events: auto). */
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* safe-area — чтобы на iPad ничего не пряталось под скруглениями экрана */
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ---------- Верхняя панель ---------- */
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.coins {
+  pointer-events: none;
+  background: var(--white);
+  border-radius: 999px;
+  padding: 10px 24px 10px 16px;
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--deep);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 0 rgba(2, 48, 71, 0.18);
+}
+
+.coin-icon { font-size: 38px; }
+
+/* Монетка подпрыгивает, когда её начислили */
+.coins.bump { animation: bump 0.45s ease; }
+@keyframes bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25) rotate(-4deg); }
+  100% { transform: scale(1); }
+}
+
+.top-buttons { display: flex; gap: 14px; }
+
+.icon-btn {
+  pointer-events: auto;
+  width: 84px;
+  height: 84px;
+  border: none;
+  border-radius: 26px;
+  background: var(--white);
+  font-size: 40px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 rgba(2, 48, 71, 0.18);
+  transition: transform 0.08s;
+}
+.icon-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(2, 48, 71, 0.18); }
+.icon-btn.off { opacity: 0.45; }
+
+/* ---------- Полоска задания ---------- */
+
+.task-bar {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 999px;
+  padding: 16px 40px;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--deep);
+  text-align: center;
+  max-width: 90%;
+  box-shadow: 0 6px 0 rgba(2, 48, 71, 0.15);
+}
+
+/* ---------- Полноэкранные окна ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  background: rgba(2, 48, 71, 0.55);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.overlay.hidden { display: none; }
+
+.card {
+  background: var(--white);
+  border-radius: 44px;
+  padding: 40px 56px;
+  text-align: center;
+  box-shadow: 0 14px 0 rgba(2, 48, 71, 0.25);
+  animation: pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+  max-width: 90vw;
+}
+@keyframes pop {
+  from { transform: scale(0.75); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.card h1 { font-size: 52px; color: var(--deep); margin-bottom: 8px; }
+.card p  { font-size: 28px; color: #4a6572; margin-bottom: 24px; }
+
+.big-emoji { font-size: 90px; margin-bottom: 8px; }
+.rotate-icon { animation: tilt 1.6s ease-in-out infinite; display: inline-block; }
+@keyframes tilt {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(90deg); }
+}
+
+.big-btn {
+  pointer-events: auto;
+  border: none;
+  border-radius: 30px;
+  background: var(--machine);
+  color: var(--white);
+  font-size: 40px;
+  font-weight: 800;
+  padding: 20px 60px;
+  min-height: 88px;
+  cursor: pointer;
+  box-shadow: 0 8px 0 #c96a00;
+  transition: transform 0.08s;
+}
+.big-btn:active { transform: translateY(5px); box-shadow: 0 3px 0 #c96a00; }
+
+/* Наклейка-награда */
+.sticker {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 16px;
+  border-radius: 34px;
+  background: var(--sun);
+  color: var(--white);
+  font-size: 96px;
+  font-weight: 900;
+  line-height: 150px;
+  box-shadow: 0 8px 0 #d89400;
+  animation: stamp 0.5s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+@keyframes stamp {
+  from { transform: scale(2) rotate(-18deg); opacity: 0; }
+  to   { transform: scale(1) rotate(-6deg);  opacity: 1; }
+}
+
+.reward { font-size: 38px; font-weight: 800; color: var(--sun); margin-bottom: 22px; }
+
+/* На узких/низких экранах чуть ужимаем, чтобы всё влезло */
+@media (max-height: 500px) {
+  .card { padding: 24px 40px; border-radius: 32px; }
+  .card h1 { font-size: 38px; }
+  .card p { font-size: 22px; margin-bottom: 14px; }
+  .big-emoji { font-size: 60px; }
+  .sticker { width: 100px; height: 100px; line-height: 100px; font-size: 64px; }
+  .task-bar { font-size: 24px; padding: 12px 28px; }
+}

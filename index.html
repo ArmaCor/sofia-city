@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit=cover + user-scalable=no: чтобы на iPad не было случайного зума пальцами -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Городок Софии</title>
+</head>
+<body>
+  <!-- Сюда Three.js рисует 3D-мир -->
+  <canvas id="scene"></canvas>
+
+  <!-- Весь интерфейс — обычный HTML поверх 3D. Так проще делать крупные кнопки. -->
+  <div id="ui">
+
+    <!-- Верхняя панель: монетки и кнопки -->
+    <div class="top-bar">
+      <div class="coins" id="coins">
+        <span class="coin-icon">🪙</span><span id="coins-value">0</span>
+      </div>
+      <div class="top-buttons">
+        <button class="icon-btn" id="btn-repeat" aria-label="Повторить задание">🔁</button>
+        <button class="icon-btn" id="btn-sound" aria-label="Звук">🔊</button>
+      </div>
+    </div>
+
+    <!-- Полоска задания внизу -->
+    <div class="task-bar" id="task-bar">
+      <span id="task-text">Помоги Ковшику выкопать букву А</span>
+    </div>
+
+    <!-- Стартовый экран. Нужен обязательно: iPad не даёт играть звуку,
+         пока ребёнок не коснётся экрана хотя бы один раз. -->
+    <div class="overlay" id="overlay-start">
+      <div class="card">
+        <div class="big-emoji">🚜</div>
+        <h1>Городок Софии</h1>
+        <p>Ковшик ждёт помощи!</p>
+        <button class="big-btn" id="btn-start">Играть</button>
+      </div>
+    </div>
+
+    <!-- Экран победы -->
+    <div class="overlay hidden" id="overlay-win">
+      <div class="card">
+        <div class="sticker" id="win-sticker">А</div>
+        <h1>Ура!</h1>
+        <p>Новая наклейка в альбом!</p>
+        <div class="reward">🪙 +1</div>
+        <button class="big-btn" id="btn-again">Ещё раз</button>
+      </div>
+    </div>
+
+    <!-- Просьба повернуть iPad. Игра только альбомная. -->
+    <div class="overlay hidden" id="overlay-rotate">
+      <div class="card">
+        <div class="big-emoji rotate-icon">📱</div>
+        <h1>Поверни планшет</h1>
+        <p>Играем горизонтально</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Аварийный экран. Нужен, чтобы видеть ошибку прямо на iPad,
+       где консоль разработчика недоступна. -->
+  <div id="crash" style="display:none;position:fixed;inset:0;z-index:9999;background:#023047;color:#fff;
+       font:16px/1.45 -apple-system,system-ui,sans-serif;padding:24px;overflow:auto;-webkit-overflow-scrolling:touch">
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px">Игра не запустилась</div>
+    <div id="crash-text" style="white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,monospace;font-size:14px"></div>
+    <div id="crash-env" style="margin-top:18px;opacity:.7;font-size:12px;word-break:break-word"></div>
+  </div>
+  <script>
+    (function () {
+      var box = document.getElementById('crash');
+      var txt = document.getElementById('crash-text');
+      function show(msg) {
+        box.style.display = 'block';
+        txt.textContent += msg + '\n\n';
+        document.getElementById('crash-env').textContent = navigator.userAgent;
+      }
+      window.addEventListener('error', function (e) {
+        if (e.message) show('Ошибка: ' + e.message + '\nФайл: ' + (e.filename || '?') + ':' + (e.lineno || '?'));
+        else if (e.target && e.target.src) show('Не загрузился файл: ' + e.target.src);
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        show('Сбой загрузки: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+      });
+      // Если через 6 секунд игра не отчиталась о старте — значит скрипт вообще не выполнился
+      setTimeout(function () {
+        if (!window.__gameAlive) show('Скрипт игры не выполнился за 6 секунд.\nВероятно, браузер не понял современный код или файл не загрузился.');
+      }, 6000);
+    })();
+  </script>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
