@@ -3,5 +3,11 @@
 export default {
   base: './',
   server: { host: true },   // host: true — открыть игру с iPad по локальной сети
-  build: { outDir: 'dist' },
+  build: {
+    outDir: 'dist',
+    // target: старый Safari (15.6 замечен на реальном iPad) не понимает часть
+    // современного синтаксиса, который может попасть в сборку через Three.js.
+    // Явно просим esbuild переписать всё в форму, совместимую и с ним тоже.
+    target: ['es2019', 'safari15'],
+  },
 };
